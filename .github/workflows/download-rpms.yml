@@ -1,0 +1,53 @@
+name: download rpms
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "rpm name (separated by spaces)"
+        required: true
+        default: "conntrack-tools socat ipset iptables ipvsadm"
+      release_tag:
+        description: "latest"
+        required: true
+        default: "latest"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable QEMU for multiarch
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+      - name: Create RPMs directory
+        run: mkdir -p rpms
+
+      - name: Download RPM packages for ARM64
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}/rpms:/tmp/rpms \
+            macrosan/kylin:v10-sp1 /bin/bash -c "
+            yum makecache && \
+            dnf install dnf-plugins-core -y && \
+            cd /tmp/rpms && \
+            yumdownloader --resolve --destdir . ${{ github.event.inputs.packages }}
+          "
+
+      - name: Package RPMs into tar.gz
+        run: |
+          tar -czvf rpms.tar.gz -C rpms .
+
+      - name: Upload and Overwrite Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ github.workspace }}/rpms.tar.gz
+          tag_name: latest
+          overwrite: true
+          body: ${{ github.event.inputs.packages }}
