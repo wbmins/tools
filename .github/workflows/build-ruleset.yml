@@ -1,0 +1,37 @@
+name: build ruleset
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Release description or package info'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install sing-box
+        run: curl -fsSL https://sing-box.app/install.sh | sh
+
+      - name: Build ruleset
+        run: |
+          cd $GITHUB_WORKSPACE
+          wget -q https://gist.githubusercontent.com/wbmins/de76f4de61ffac0bfbe3e736f6a2c425/raw/reject.json
+          sing-box rule-set compile --output reject.srs ./reject.json
+
+      - name: Upload and Overwrite Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ github.workspace }}/reject.srs
+            ${{ github.workspace }}/reject.mrs
+          tag_name: latest
+          overwrite: true
+          body: ${{ github.event.inputs.packages }}

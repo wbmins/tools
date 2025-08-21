@@ -21,7 +21,7 @@ update_self() {
   local self_path tmpfile
   self_path="$(readlink -f "$0")"
   tmpfile="$(mktemp)"
-  if curl -fsSL "https://raw.githubusercontent.com/wbmins/shell/refs/heads/main/docker/pull_dockerhub_image.sh" -o "$tmpfile"; then
+  if curl -fsSL "https://raw.githubusercontent.com/wbmins/tools/refs/heads/main/docker/pull_dockerhub_image.sh" -o "$tmpfile"; then
     if [[ -s "$tmpfile" ]]; then
       mv "$tmpfile" "$self_path"
       chmod +x "$self_path"
@@ -96,16 +96,13 @@ USAGE
 
   # 判断是否是完整域名
   if [[ "$IMAGE" == *.*/* || "$IMAGE" == *:*/* ]]; then
-    # 有域名的镜像
     REGISTRY_HOST="${IMAGE%%/*}"
     REPO_PATH="${IMAGE#*/}"
   else
-    # 没有域名的，默认 docker.io
     REGISTRY_HOST="docker.io"
     REPO_PATH="$IMAGE"
   fi
 
-  # docker hub repository 格式调整
   if [[ "$REGISTRY_HOST" == "docker.io" ]]; then
     if [[ "$REPO_PATH" != */* ]]; then
       Image="library/$REPO_PATH"
@@ -208,11 +205,14 @@ get_layers() {
     local digest="${LAYERS[$i]}"
     local base="${digest#sha256:}"
     local out="$WORKDIR/${base}.tar.gz"
-    printf "Layer %d/%d:    " "$((i+1))" "${#LAYERS[@]}"
+
+    # 两位数字占位，保证 1/10 和 10/10 对齐
+    printf "Layer %2d/%2d:   " "$((i+1))" "${#LAYERS[@]}"
+
     if curl -sL -H "Authorization: Bearer $TOKEN" "https://${REPO}/v2/${Image}/blobs/${digest}" -o "$out"; then
-      echo "✔"
+      printf "✔\n"
     else
-      echo "下载失败"
+      printf "下载失败\n"
       exit 1
     fi
   done
