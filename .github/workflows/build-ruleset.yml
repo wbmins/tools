@@ -23,7 +23,7 @@ jobs:
       - name: Build ruleset
         run: |
           cd $GITHUB_WORKSPACE
-          wget -q https://gist.githubusercontent.com/wbmins/de76f4de61ffac0bfbe3e736f6a2c425/raw/reject.json
+          wget -q https://gist.githubusercontent.com/wbmins/ae0a36e31e7efdf5f06d262d89c3b68c/raw/reject.json
           sing-box rule-set compile --output reject.srs ./reject.json
 
       - name: Upload and Overwrite Release Assets
