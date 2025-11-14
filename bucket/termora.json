@@ -1,0 +1,41 @@
+{
+    "version": "2.0.0-beta.15",
+    "description": "Termora is a terminal emulator and SSH client for Windows, macOS and Linux.",
+    "homepage": "https://github.com/TermoraDev/termora",
+    "license": "AGPL-3.0",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/TermoraDev/termora/releases/download/2.0.0-beta.15/termora-2.0.0-beta.15-windows-x86-64.zip",
+            "hash": "c70e9dd70a7731cdf36e19c95a7ddda1f129a623da96d91f62be158213ef8e91"
+        },
+        "arm64": {
+            "url": "https://github.com/TermoraDev/termora/releases/download/2.0.0-beta.15/termora-2.0.0-beta.15-windows-aarch64.zip",
+            "hash": "e66cb2d5b6be1e2f175f74d253597073661d5d3efeebf3d14aca0ebd5ccea300"
+        }
+    },
+    "extract_dir": "Termora",
+    "post_install": [
+        "New-Item -ItemType Directory -Path \"$dir\\data\" -Force"
+    ],
+    "shortcuts": [
+        [
+            "Termora.exe"
+        ]
+    ],
+    "persist": [
+        "data"
+    ],
+    "checkver": {
+        "github": "https://github.com/TermoraDev/termora"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/TermoraDev/termora/releases/download/$version/termora-$version-windows-x86-64.zip"
+            },
+            "arm64": {
+                "url": "https://github.com/TermoraDev/termora/releases/download/$version/termora-$version-windows-aarch64.zip"
+            }
+        }
+    }
+}
