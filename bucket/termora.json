@@ -19,7 +19,8 @@
     ],
     "shortcuts": [
         [
-            "Termora.exe"
+            "Termora.exe",
+			"Termora"
         ]
     ],
     "persist": [
