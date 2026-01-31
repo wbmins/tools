@@ -3,47 +3,109 @@ name: download rpms
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Choose the version'
+        required: true
+        type: choice
+        options:
+          - v10sp1
+          - v10sp2
+          - v10sp3
+          - v10sp3-2403
+          - v11-2503
+        default: v10sp1
       packages:
-        description: "rpm name (separated by spaces)"
+        description: 'RPM name(s) (separated by spaces)'
         required: true
-        default: "gcc-c++ gcc-gfortran"
-      release_tag:
-        description: "latest"
+        default: 'gcc-c++ gcc-gfortran'
+      operate:
+        description: 'Choose operate: search or download'
         required: true
-        default: "latest"
+        type: choice
+        options:
+          - search
+          - download
+        default: download
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-arm
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable QEMU for multiarch
+      - name: Set Docker image based on version
+        id: set_image
         run: |
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          case ${{ github.event.inputs.version }} in
+            v10sp1)
+              echo "image=cr.kylinos.cn/kylin/kylin-server-platform:v10sp1" >> $GITHUB_ENV
+              ;;
+            v10sp2)
+              echo "image=cr.kylinos.cn/kylin/kylin-server-platform:v10sp2" >> $GITHUB_ENV
+              ;;
+            v10sp3)
+              echo "image=cr.kylinos.cn/kylin/kylin-server-platform:v10sp3" >> $GITHUB_ENV
+              ;;
+            v10sp3-2403)
+              echo "image=cr.kylinos.cn/kylin/kylin-server-platform:v10sp3-2403" >> $GITHUB_ENV
+              ;;
+            v11-2503)
+              echo "image=cr.kylinos.cn/kylin/kylin-server-platform:v11-2503" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "image=cr.kylinos.cn/kylin/kylin-server-platform:v10sp1" >> $GITHUB_ENV
+              ;;
+          esac
 
-      - name: Create RPMs directory
-        run: mkdir -p rpms
+      - name: Cache Docker image
+        id: docker_cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/docker_cache/${{ github.event.inputs.version }}.tar
+          key: ${{ github.event.inputs.version }}-docker-
+          restore-keys: |
+            ${{ github.event.inputs.version }}-docker-
 
-      - name: Download RPM packages for ARM64
+      - name: Pull and cache Docker image
         run: |
-          docker run --rm --platform linux/arm64 \
-            -v ${{ github.workspace }}/rpms:/tmp/rpms \
-            cr.kylinos.cn/kylin/kylin-server-platform:v10sp1 /bin/bash -c "
-            yum makecache && \
-            dnf install dnf-plugins-core -y && \
-            cd /tmp/rpms && \
-            yumdownloader --resolve --destdir . ${{ github.event.inputs.packages }}
-          "
+          if [ ! -f "./docker_cache/${{ github.event.inputs.version }}.tar" ]; then
+            echo "Image not found in cache. Pulling and saving the Docker image."
+            docker pull ${{ env.image }}
+            mkdir -p ${{ github.workspace }}/docker_cache
+            docker save ${{ env.image }} -o ${{ github.workspace }}/docker_cache/${{ github.event.inputs.version }}.tar
+          else
+            echo "Image found in cache. Loading the cached Docker image."
+            docker load -i ./docker_cache/${{ github.event.inputs.version }}.tar
+          fi
 
-      - name: Package RPMs into tar.gz
+      - name: Perform operate based on selected option
         run: |
-          tar -czvf rpms.tar.gz -C rpms .
+          if [ "${{ github.event.inputs.operate }}" == "search" ]; then
+            echo "Searching for packages: ${{ github.event.inputs.packages }}"
+            docker run --rm --platform linux/arm64 \
+              ${{ env.image }} /bin/bash -c "
+                yum search ${{ github.event.inputs.packages }}"
+          elif [ "${{ github.event.inputs.operate }}" == "download" ]; then
+            echo "Downloading packages: ${{ github.event.inputs.packages }}"
+            mkdir -p cd ${{ github.workspace }}/rpms
+            docker run --rm --platform linux/arm64 \
+              -v ./rpms:/tmp/rpms \
+              ${{ env.image }} /bin/bash -c "
+                yum makecache && \
+                dnf install dnf-plugins-core -y && \
+                cd /tmp/rpms && \
+                yumdownloader --resolve --destdir . ${{ github.event.inputs.packages }}"
+             tar -zcvf rpms.tar.gz rpms
+          else
+            echo "Invalid operate: ${GITHUB_EVENT_INPUT_OPERATE}"
+            exit 1
+          fi
 
       - name: Upload and Overwrite Release Assets
+        if: ${{ github.event.inputs.operate == 'download' }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
