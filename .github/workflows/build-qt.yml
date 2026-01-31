@@ -1,0 +1,84 @@
+name: build qt
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04-arm
+    permissions:
+      contents: write
+
+    steps:
+      - name: Clean Ubuntu runner
+        run: |
+          set -eux
+
+          echo "===== Disk before ====="
+          df -h /
+
+          echo "===== Remove preinstalled big packages ====="
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/aws-cli || true
+          sudo rm -rf /usr/local/google-cloud-sdk || true
+          sudo rm -rf /usr/local/share/chromium || true
+
+          echo "===== Remove snap ====="
+          sudo rm -rf /snap/* /var/snap/* /var/lib/snapd || true
+
+          echo "===== Clean apt cache ====="
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+
+          echo "===== Clean docker images/containers/volumes ====="
+          docker system prune -af --volumes || true
+
+          echo "===== Disk after ====="
+          df -h /
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull Docker Image
+        run: |
+          docker pull wbmins/kylin-server-platform:v10sp1
+
+      # ✅ 缓存 Qt 源码
+      - name: Cache Qt source
+        uses: actions/cache@v4
+        with:
+          path: scripts/qt-everywhere-opensource-src-5.15.18.tar.xz
+          key: qt-src-5.15.18
+          restore-keys: |
+            qt-src-
+
+      - name: Get Qt source
+        run: |
+          cd $GITHUB_WORKSPACE/scripts
+          if [ ! -f qt-everywhere-opensource-src-5.15.18.tar.xz ]; then
+            echo "Downloading Qt source..."
+            curl -LO https://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/5.15/5.15.18/single/qt-everywhere-opensource-src-5.15.18.tar.xz
+          else
+            echo "Qt source found in cache ✅"
+          fi
+
+      - name: Build Qt in Docker
+        run: |
+          cd $GITHUB_WORKSPACE/scripts
+          docker run --rm \
+            -v "$PWD:/root/" \
+            wbmins/kylin-server-platform:v10sp1 \
+            bash -c "cd /root/ && sh build-qt.sh"
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            scripts/Qt-5.15.18-shared.tar.gz
+            scripts/Qt-5.15.18-static.tar.gz
+          tag_name: latest
+          overwrite: true
+          body: "Auto build Qt 5.15.18"
