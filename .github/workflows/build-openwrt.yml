@@ -1,0 +1,31 @@
+name: build openwrt
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'openwrt version'
+        required: true
+        default: '25.12.0-rc4'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Build OpenWrt
+        id: set_image
+        run: |
+          curl -L -o build_openwrt.sh https://gist.githubusercontent.com/wbmins/0c9992ef4015ad7f060b16bb1dea6ba7/raw/build_openwrt.sh
+          chmod +x build_openwrt.sh
+          ./build_openwrt.sh ${{ github.event.inputs.version }}
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            output/openwrt-${{ github.event.inputs.version }}-combined-ext4.img.gz
+          tag_name: latest
+          overwrite: true
+          body: openwrt-${{ github.event.inputs.version }}-combined-ext4.img.gz
