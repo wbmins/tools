@@ -69,7 +69,6 @@ cd /root/qt-everywhere-src-5.15.18
 -skip qtvirtualkeyboard \
 -skip qtwebchannel \
 -skip qtwebglplugin \
--skip qtwebsockets \
 -skip qtwebview \
 -skip qtnetworkauth \
 -skip qt3d \
@@ -151,7 +150,6 @@ cd /root/qt-everywhere-src-5.15.18
 -skip qtvirtualkeyboard \
 -skip qtwebchannel \
 -skip qtwebglplugin \
--skip qtwebsockets \
 -skip qtwebview \
 -skip qtnetworkauth \
 -skip qt3d \
